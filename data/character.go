@@ -1,8 +1,8 @@
 package data
 
 import (
+	"github.com/gorilla/websocket"
 	uuid "github.com/satori/go.uuid"
-	"golang.org/x/net/websocket"
 )
 
 type Character struct {

@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gorilla/websocket"
 	uuid "github.com/satori/go.uuid"
@@ -60,19 +61,33 @@ func (s *Server) wsHandler(w http.ResponseWriter, r *http.Request) {
 
 	defer c.Close()
 
+	client := &data.Character{
+		Conn: c,
+	}
+
+	go s.mainLoop()
+
+	s.characters[uuid.NewV4()] = client
+
 	for {
-		select {
-		case character := <-s.register:
-			s.characters[uuid.NewV4()] = character
-		case cTmp := <-s.unregister:
-			if character, ok := s.characters[cTmp.ID]; ok {
-				delete(s.characters, cTmp.ID)
-				close(character.Send)
-			}
-		case _ = <-s.broadcast:
-			for _ = range s.characters {
-				// sync messages on characters
-			}
+		mt, _, err := c.ReadMessage()
+		if err != nil {
+			panic(err)
+			break
 		}
+
+		log.WithField("characters", s.characters).Info("Added")
+		// js, err := json.Marshal(s.characters)
+		c.WriteMessage(mt, []byte("your bunny wrote"))
+	}
+}
+
+func (s *Server) mainLoop() {
+	for {
+		for _, c := range s.characters {
+			c.Conn.WriteMessage(websocket.TextMessage, []byte("Hello"))
+		}
+
+		time.Sleep(1000 * time.Millisecond)
 	}
 }
