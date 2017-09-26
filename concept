@@ -1,0 +1,11 @@
+
+loop -> recv_jsn_cmd
+     -> send_jsn_cmd
+     -> sync_jsn
+
+     Cmd{
+       Data string
+       SenderUUID uuid.UUID
+       Timestamp time.Time
+     }
+
