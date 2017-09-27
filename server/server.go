@@ -70,24 +70,25 @@ func (s *Server) wsHandler(w http.ResponseWriter, r *http.Request) {
 	s.characters[uuid.NewV4()] = client
 
 	for {
-		mt, _, err := c.ReadMessage()
+		point := data.Point{}
+		err := c.ReadJSON(&point)
 		if err != nil {
 			panic(err)
 			break
 		}
+		log.WithField("data", point).Info("message recv")
 
 		log.WithField("characters", s.characters).Info("Added")
 		// js, err := json.Marshal(s.characters)
-		c.WriteMessage(mt, []byte("your bunny wrote"))
 	}
 }
 
 func (s *Server) mainLoop() {
 	for {
 		for _, c := range s.characters {
-			c.Conn.WriteMessage(websocket.TextMessage, []byte("Hello"))
+			c.Conn.WriteMessage(websocket.TextMessage, []byte("ping"))
 		}
 
-		time.Sleep(1000 * time.Millisecond)
+		time.Sleep(10000 * time.Millisecond)
 	}
 }

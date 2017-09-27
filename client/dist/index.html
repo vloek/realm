@@ -1,0 +1,37 @@
+<html>
+  <head>
+    <title> Ok </title>
+    <style type="text/css">
+#game {
+    background: black;
+    border: 2px double #aaa;
+    border-radius: 5px;
+    border-collapse: separate;
+    border-spacing: 10px;
+}
+    </style>
+    <script src="bundle.js"></script>
+  </head>
+<body>
+  <canvas id="game" width="600" height="450">
+    <p>Ваш браузер не поддерживает рисование.</p>
+  </canvas>
+
+      <script lang="javascript">
+        var socket = new WebSocket("ws://localhost:8090/ws");
+        socket.onmessage = function(msg) {
+          console.log(msg.data);
+        }
+
+        socket.onopen = function(msg) {
+          console.log("Connecting")
+        }
+
+        var game =  document.getElementById("game");
+        game.onclick = function getRelativeCoords(event) {
+          console.log("Clicked!!!");
+          socket.send(JSON.stringify({ x: event.offsetX, y: event.offsetY }))
+        }
+      </script>
+ </body>
+ </html>
