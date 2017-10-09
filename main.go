@@ -6,5 +6,5 @@ import (
 
 func main() {
 	realm := server.NewServer()
-	realm.Run()
+	realm.Initialize().Run()
 }
