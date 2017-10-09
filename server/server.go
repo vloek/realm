@@ -1,94 +1,45 @@
 package server
 
 import (
+	"log"
 	"net/http"
-	"time"
 
-	"github.com/gorilla/websocket"
-	uuid "github.com/satori/go.uuid"
-	log "github.com/sirupsen/logrus"
+	"github.com/graarh/golang-socketio"
+	"github.com/graarh/golang-socketio/transport"
 	"github.com/vloek/realm/data"
 )
 
-var (
-	upgrader = websocket.Upgrader{
-		ReadBufferSize:  1024,
-		WriteBufferSize: 1024,
-		CheckOrigin: func(r *http.Request) bool {
-			return true
-		},
-	}
-)
-
 type Server struct {
-	// Registered clients.
-	characters map[uuid.UUID]*data.Character
-
-	// Inbound messages from the clients.
-	broadcast chan []byte
-
-	// Register requests from the clients.
-	register chan *data.Character
-
-	// Unregister requests from clients.
-	unregister chan *data.Character
+	characters []*data.Character
+	conn       *http.ServeMux
 }
 
 func NewServer() *Server {
+	server := gosocketio.NewServer(transport.GetDefaultWebsocketTransport())
+
+	server.On(gosocketio.OnConnection, func(c *gosocketio.Channel) {
+		log.Println("New client connected")
+		//join them to room
+		c.Join("game")
+	})
+
+	//handle custom event
+	server.On("login", func(c *gosocketio.Channel, character data.Character) string {
+		//send event to all in room
+		c.BroadcastTo("game", "message", character)
+		return "OK"
+	})
+
+	//setup http server
+	serveMux := http.NewServeMux()
+	serveMux.Handle("/", server)
+
 	return &Server{
-		broadcast:  make(chan []byte),
-		register:   make(chan *data.Character),
-		unregister: make(chan *data.Character),
-		characters: make(map[uuid.UUID]*data.Character),
+		characters: make([]*data.Character, 1024),
+		conn:       serveMux,
 	}
 }
 
 func (s *Server) Run() {
-	log.Info("Running..")
-	s.listen("localhost:8090")
-}
-
-func (s *Server) listen(addr string) {
-	http.HandleFunc("/ws", s.wsHandler)
-	http.ListenAndServe(addr, nil)
-}
-
-func (s *Server) wsHandler(w http.ResponseWriter, r *http.Request) {
-	c, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		panic(err)
-	}
-
-	defer c.Close()
-
-	client := &data.Character{
-		Conn: c,
-	}
-
-	go s.mainLoop()
-
-	s.characters[uuid.NewV4()] = client
-
-	for {
-		point := data.Point{}
-		err := c.ReadJSON(&point)
-		if err != nil {
-			panic(err)
-			break
-		}
-		log.WithField("data", point).Info("message recv")
-
-		log.WithField("characters", s.characters).Info("Added")
-		// js, err := json.Marshal(s.characters)
-	}
-}
-
-func (s *Server) mainLoop() {
-	for {
-		for _, c := range s.characters {
-			c.Conn.WriteMessage(websocket.TextMessage, []byte("ping"))
-		}
-
-		time.Sleep(10000 * time.Millisecond)
-	}
+	http.ListenAndServe(":8032", s.conn)
 }
