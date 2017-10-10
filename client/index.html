@@ -13,11 +13,29 @@
       #messages li:nth-child(odd) { background: #eee; }
     </style>
     <script src="/js/socket.io.js"></script>
+    <script src="/js/phaser.min.js"></script>
+    <script src="/js/main.js"></script>
+        <script>
+          var socket = io('ws://localhost:8032/', {transports: ['websocket']});
+          
+          socket.on('connect', function () {
+
+            socket.on("join", function(char) {
+              console.log(char);
+            });
+
+            console.log('socket connected');
+
+            socket.emit('login', 
+              {login: "vasya", password: "hello"}, 
+              function(result) {
+                    console.log('sended successfully');
+                    console.log(result);
+              }
+            );
+          });
+        </script>
   </head>
   <body>
-    <ul id="messages"></ul>
-    <form action="">
-      <input id="m" autocomplete="off" /><button>Send</button>
-    </form>
   </body>
 </html>

@@ -5,22 +5,26 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/graarh/golang-socketio"
-	"github.com/graarh/golang-socketio/transport"
+	"github.com/googollee/go-socket.io"
+	uuid "github.com/satori/go.uuid"
 	"github.com/vloek/realm/data"
 	"github.com/vloek/realm/data/messages"
 )
 
+type Message struct {
+	Hello string
+}
+
 type Server struct {
-	characters []*data.Character
-	conn       *gosocketio.Server
+	characters map[uuid.UUID]*data.Character
+	conn       *socketio.Server
 }
 
 func NewServer() *Server {
-	server := gosocketio.NewServer(transport.GetDefaultWebsocketTransport())
+	server, _ := socketio.NewServer(nil)
 
 	return &Server{
-		characters: make([]*data.Character, 0),
+		characters: make(map[uuid.UUID]*data.Character),
 		conn:       server,
 	}
 }
@@ -35,29 +39,49 @@ func (s *Server) Run() {
 }
 
 func (s *Server) Initialize() *Server {
-	s.conn.On(gosocketio.OnConnection, func(c *gosocketio.Channel) {
-		log.Println("New client connected")
-		//join them to room
-		c.Join("game")
-	})
+	// Connect
+	s.conn.On("connection", s.connection)
+
+	// Disconnect
+	s.conn.On("disconnection", s.disconnection)
 
 	//handle custom event
-	s.conn.On("login", func(c *gosocketio.Channel, lm messages.LoginMessage) string {
-		//send event to all in room
-
-		if lm.IsValid() {
-			log.Println("Char valid and add")
-			char := data.NewCharacter(c)
-
-			s.characters = append(s.characters, char)
-
-			c.BroadcastTo("game", "character", char)
-		}
-
-		return "OK"
-	})
+	s.conn.On("login", s.loginDo)
 
 	return s
+}
+
+func (s *Server) connection(c socketio.Socket) {
+	log.Println("New client connected")
+}
+
+func (s *Server) disconnection(c socketio.Socket) {
+	c.Leave("game")
+
+	for _, ch := range s.characters {
+		if ch.Conn == c {
+			log.Println("Found!")
+			delete(s.characters, ch.ID)
+		}
+	}
+
+	log.Println("Disconnected")
+}
+
+func (s *Server) loginDo(c socketio.Socket, lm messages.LoginMessage) string {
+	log.Println("Login..")
+
+	if lm.IsValid() {
+		c.Join("game")
+
+		char := data.NewCharacter(c)
+
+		s.characters[char.ID] = char
+
+		c.BroadcastTo("game", "join", char.SerializeToBroadcast())
+	}
+
+	return "OK"
 }
 
 func (s *Server) watchCharacters() {
@@ -65,8 +89,8 @@ func (s *Server) watchCharacters() {
 	for {
 		select {
 		case <-tick:
-			for ch := range s.characters {
-				log.Println("Ch: %s", ch)
+			for k, ch := range s.characters {
+				log.Println("Ch:", k, ch)
 			}
 		}
 	}

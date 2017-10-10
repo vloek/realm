@@ -1,20 +1,34 @@
 package data
 
 import (
-	"github.com/graarh/golang-socketio"
-
 	uuid "github.com/satori/go.uuid"
+
+	"github.com/googollee/go-socket.io"
 )
 
 type Character struct {
 	ID   uuid.UUID
 	Pos  Point `json:"point"`
-	Conn *gosocketio.Channel
+	Conn socketio.Socket
 	Send chan []byte
 }
 
-func NewCharacter(conn *gosocketio.Channel) *Character {
+type CharacterBroadcast struct {
+	ID  uuid.UUID `json:"id"`
+	Pos Point     `json:"point"`
+}
+
+func NewCharacter(conn socketio.Socket) *Character {
 	return &Character{
-		Pos: Point{0, 0},
+		ID:   uuid.NewV4(),
+		Conn: conn,
+		Pos:  Point{0, 0},
+	}
+}
+
+func (c *Character) SerializeToBroadcast() *CharacterBroadcast {
+	return &CharacterBroadcast{
+		ID:  c.ID,
+		Pos: c.Pos,
 	}
 }
