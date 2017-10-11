@@ -1,4 +1,4 @@
-var game = new Phaser.Game(800, 400, Phaser.AUTO, 'test', null, true, false);
+var game = new Phaser.Game(window.innerWidth, window.innerHeight, Phaser.WEBGL, 'game-place', true, false);
 
 var BasicGame = function (game) { };
 
@@ -9,7 +9,10 @@ var isoGroup, player;
 BasicGame.Boot.prototype =
 {
     preload: function () {
-        game.load.image('cube', '/img/cube.png');
+        // game.load.image('cube', '/img/cube.png');
+        game.load.spritesheet('cube', '/img/char.png', 55, 64, 72);
+        
+
 
         game.time.advancedTiming = true;
 
@@ -38,25 +41,30 @@ BasicGame.Boot.prototype =
             for (var yy = 256; yy > 0; yy -= 80) {
                 // Create a cube using the new game.add.isoSprite factory method at the specified position.
                 // The last parameter is the group you want to add it to (just like game.add.sprite)
-                cube = game.add.isoSprite(xx, yy, 0, 'cube', 0, isoGroup);
-                cube.anchor.set(0.5);
+                //cube = game.add.isoSprite(xx, yy, 0, 'cube', 0, isoGroup);
+                //cube.anchor.set(0.5);
 
                 // Enable the physics body on this cube.
-                game.physics.isoArcade.enable(cube);
+                //game.physics.isoArcade.enable(cube);
 
                 // Collide with the world bounds so it doesn't go falling forever or fly off the screen!
-                cube.body.collideWorldBounds = true;
+                //cube.body.collideWorldBounds = true;
 
                 // Add a full bounce on the x and y axes, and a bit on the z axis. 
-                cube.body.bounce.set(1, 1, 0.2);
+                //cube.body.bounce.set(1, 1, 0.2);
 
                 // Add some X and Y drag to make cubes slow down after being pushed.
-                cube.body.drag.set(100, 100, 0);
+                //cube.body.drag.set(100, 100, 0);
             }
         }
 
         // Create another cube as our 'player', and set it up just like the cubes above.
-        player = game.add.isoSprite(128, 128, 0, 'cube', 0, isoGroup);
+        player = game.add.isoSprite(500, 519, 0, 'cube', 0, isoGroup);
+        player.frame = 50;
+        player.animations.add('walkLeft', [8, 7, 6, 5, 4, 3, 2, 1, 0], true);
+        player.animations.play('walkLeft', 50, true);
+
+
         player.tint = 0x86bfda;
         player.anchor.set(0.5);
         game.physics.isoArcade.enable(player);
