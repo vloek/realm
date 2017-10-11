@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -8,7 +9,6 @@ import (
 	"github.com/googollee/go-socket.io"
 	uuid "github.com/satori/go.uuid"
 	"github.com/vloek/realm/data"
-	"github.com/vloek/realm/data/messages"
 )
 
 type Message struct {
@@ -16,7 +16,7 @@ type Message struct {
 }
 
 type Server struct {
-	characters map[uuid.UUID]*data.Character
+	characters map[uuid.UUID]*data.Character `json:"characters"`
 	conn       *socketio.Server
 }
 
@@ -35,6 +35,7 @@ func (s *Server) Run() {
 	serveMux := http.NewServeMux()
 	serveMux.Handle("/", s.conn)
 
+	fmt.Println("Run on 8032 port")
 	http.ListenAndServe(":8032", serveMux)
 }
 
@@ -46,9 +47,21 @@ func (s *Server) Initialize() *Server {
 	s.conn.On("disconnection", s.disconnection)
 
 	//handle custom event
-	s.conn.On("login", s.loginDo)
+	s.conn.On("newplayer", s.loginDo)
+
+	// click
+	s.conn.On("click", s.clicked)
 
 	return s
+}
+
+func (s *Server) clicked(c socketio.Socket, pos map[string]float64) {
+	log.Printf("%s", pos)
+	fmt.Println("CLick to ", pos["x"], pos["y"], "\n")
+	if char := s.findCharacterBySocket(c); char != nil {
+		char.Pos = data.Point{X: pos["x"], Y: pos["y"]}
+		c.Emit("move", char.SerializeToBroadcast())
+	}
 }
 
 func (s *Server) connection(c socketio.Socket) {
@@ -58,28 +71,41 @@ func (s *Server) connection(c socketio.Socket) {
 func (s *Server) disconnection(c socketio.Socket) {
 	c.Leave("game")
 
-	for _, ch := range s.characters {
-		if ch.Conn == c {
-			log.Println("Found!")
-			delete(s.characters, ch.ID)
-		}
+	char := s.findCharacterBySocket(c)
+	if char == nil {
+		return
 	}
+	delete(s.characters, char.ID)
 
 	log.Println("Disconnected")
 }
 
-func (s *Server) loginDo(c socketio.Socket, lm messages.LoginMessage) string {
-	log.Println("Login..")
-
-	if lm.IsValid() {
-		c.Join("game")
-
-		char := data.NewCharacter(c)
-
-		s.characters[char.ID] = char
-
-		c.BroadcastTo("game", "join", char.SerializeToBroadcast())
+func (s *Server) findCharacterBySocket(c socketio.Socket) *data.Character {
+	for _, ch := range s.characters {
+		if ch.Conn == c {
+			return ch
+		}
 	}
+	return nil
+}
+
+func (s *Server) loginDo(c socketio.Socket, x map[string]interface{}) string {
+	log.Println("Login..", x)
+
+	c.Join("game")
+
+	char := data.NewCharacter(c)
+
+	s.characters[char.ID] = char
+
+	var allplayers []*data.CharacterBroadcast
+	for _, ch := range s.characters {
+		allplayers = append(allplayers, ch.SerializeToBroadcast())
+	}
+
+	// c.BroadcastTo("game", "join", char.SerializeToBroadcast())
+	s.conn.BroadcastTo("game", "allplayers", allplayers)
+	//c.Emit("allplayers", allplayers)
 
 	return "OK"
 }

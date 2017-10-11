@@ -7,8 +7,8 @@ import (
 )
 
 type Character struct {
-	ID   uuid.UUID
-	Pos  Point `json:"point"`
+	ID   uuid.UUID `json:"id"`
+	Pos  Point     `json:"point"`
 	Conn socketio.Socket
 	Send chan []byte
 }
