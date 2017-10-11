@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"time"
 
@@ -60,7 +61,7 @@ func (s *Server) clicked(c socketio.Socket, pos map[string]float64) {
 	fmt.Println("CLick to ", pos["x"], pos["y"], "\n")
 	if char := s.findCharacterBySocket(c); char != nil {
 		char.Pos = data.Point{X: pos["x"], Y: pos["y"]}
-		c.Emit("move", char.SerializeToBroadcast())
+		s.conn.BroadcastTo("game", "move", char.SerializeToBroadcast())
 	}
 }
 
@@ -96,6 +97,12 @@ func (s *Server) loginDo(c socketio.Socket, x map[string]interface{}) string {
 
 	char := data.NewCharacter(c)
 
+	random := rand.New(rand.NewSource(2))
+	xx := float64(random.Intn(120))
+	yy := float64(random.Intn(200))
+	pos := data.Point{X: xx, Y: yy}
+	char.Pos = pos
+
 	s.characters[char.ID] = char
 
 	var allplayers []*data.CharacterBroadcast
@@ -104,8 +111,9 @@ func (s *Server) loginDo(c socketio.Socket, x map[string]interface{}) string {
 	}
 
 	// c.BroadcastTo("game", "join", char.SerializeToBroadcast())
-	s.conn.BroadcastTo("game", "allplayers", allplayers)
-	//c.Emit("allplayers", allplayers)
+	s.conn.BroadcastTo("game", "newplayer", char.SerializeToBroadcast())
+
+	c.Emit("allplayers", allplayers)
 
 	return "OK"
 }
